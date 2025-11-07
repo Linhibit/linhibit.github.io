@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>云剪贴板 - 跨设备同步</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding: 0 10px;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+        }
+        
+        .section h3 {
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .section p {
+            margin-bottom: 15px;
+            font-size: 1rem;
+            opacity: 0.8;
+            line-height: 1.5;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        input, textarea {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        
+        textarea {
+            min-height: 140px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+        
+        .buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        button {
+            background: white;
+            color: #2575fc;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 50px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: 600;
+            flex: 1;
+            min-width: 140px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+            background: #f0f0f0;
+        }
+        
+        .clipboard-item {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .clipboard-item:active {
+            transform: scale(0.99);
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .clipboard-content {
+            white-space: pre-wrap;
+            margin-bottom: 12px;
+            line-height: 1.5;
+            font-size: 1rem;
+        }
+        
+        .clipboard-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            opacity: 0.7;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 10px;
+        }
+        
+        .clipboard-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .action-btn:active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            opacity: 0.7;
+        }
+        
+        .empty-state p {
+            margin-bottom: 10px;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            left: 20px;
+            background: white;
+            color: #2575fc;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transform: translateY(-100px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .notification.show {
+            transform: translateY(0);
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            opacity: 0.7;
+            font-size: 0.9rem;
+            padding: 0 10px;
+        }
+        
+        .info-box {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .info-box h4 {
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        
+        /* 平板和手机优化 */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .subtitle {
+                font-size: 1rem;
+            }
+            
+            .section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .section h3 {
+                font-size: 1.2rem;
+            }
+            
+            button {
+                padding: 12px 16px;
+                font-size: 0.95rem;
+                min-width: 120px;
+            }
+            
+            .buttons {
+                gap: 8px;
+            }
+            
+            .clipboard-item {
+                padding: 12px;
+            }
+            
+            .clipboard-content {
+                font-size: 0.95rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 1.6rem;
+            }
+            
+            .section {
+                padding: 12px;
+            }
+            
+            .buttons {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+                min-width: auto;
+            }
+            
+            .clipboard-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .clipboard-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>云剪贴板</h1>
+            <p class="subtitle">真正的跨设备同步 - 使用Firebase</p>
+        </header>
+
+        <div class="section">
+            <h3>设置Firebase连接</h3>
+            <p>使用Firebase实现真正的跨设备同步</p>
+            
+            <div class="info-box">
+                <h4>免费设置步骤：</h4>
+                <p>1. 访问 <a href="https://firebase.google.com" style="color: white; text-decoration: underline;" target="_blank">Firebase官网</a></p>
+                <p>2. 创建免费账户和项目</p>
+                <p>3. 启用Firestore数据库</p>
+                <p>4. 获取项目配置信息并填入下方</p>
+            </div>
+            
+            <div class="input-group">
+                <input type="text" id="apiKey" placeholder="Firebase API密钥">
+            </div>
+            <div class="input-group">
+                <input type="text" id="projectId" placeholder="Firebase项目ID">
+            </div>
+            <div class="buttons">
+                <button id="saveConfigBtn">
+                    <span>💾</span> 保存配置
+                </button>
+                <button id="resetConfigBtn">
+                    <span>🔄</span> 重置配置
+                </button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>添加内容</h3>
+            <div class="input-group">
+                <textarea id="clipboardInput" placeholder="在这里输入或粘贴您想要保存的文本内容..."></textarea>
+            </div>
+            <div class="buttons">
+                <button id="saveBtn">
+                    <span>💾</span> 保存到云端
+                </button>
+                <button id="clearBtn">
+                    <span>🗑️</span> 清空
+                </button>
+                <button id="refreshBtn">
+                    <span>🔄</span> 刷新列表
+                </button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>已保存的内容</h3>
+            <div id="clipboardList">
+                <div class="empty-state">
+                    <p>暂无保存的内容</p>
+                    <p>请先完成Firebase配置</p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>云剪贴板 &copy; 2023 - 使用Firebase实现跨设备同步</p>
+        </footer>
+    </div>
+
+    <div id="notification" class="notification">
+        内容已保存！
+    </div>
+
+    <!-- 引入Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Firebase配置存储键名
+        const FIREBASE_CONFIG_KEY = 'firebase_clipboard_config';
+        
+        // DOM元素
+        const apiKeyInput = document.getElementById('apiKey');
+        const projectIdInput = document.getElementById('projectId');
+        const saveConfigBtn = document.getElementById('saveConfigBtn');
+        const resetConfigBtn = document.getElementById('resetConfigBtn');
+        const clipboardInput = document.getElementById('clipboardInput');
+        const saveBtn = document.getElementById('saveBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const clipboardList = document.getElementById('clipboardList');
+        const notification = document.getElementById('notification');
+        
+        // Firebase实例
+        let firebaseApp = null;
+        let db = null;
+        
+        // 加载配置
+        function loadConfig() {
+            try {
+                const stored = localStorage.getItem(FIREBASE_CONFIG_KEY);
+                if (stored) {
+                    const config = JSON.parse(stored);
+                    apiKeyInput.value = config.apiKey || '';
+                    projectIdInput.value = config.projectId || '';
+                    
+                    // 如果配置完整，初始化Firebase
+                    if (config.apiKey && config.projectId) {
+                        initializeFirebase(config);
+                    }
+                }
+            } catch (error) {
+                console.error('加载配置失败:', error);
+            }
+        }
+        
+        // 初始化Firebase
+        function initializeFirebase(config) {
+            try {
+                const firebaseConfig = {
+                    apiKey: config.apiKey,
+                    projectId: config.projectId,
+                    authDomain: `${config.projectId}.firebaseapp.com`,
+                    storageBucket: `${config.projectId}.appspot.com`,
+                };
+                
+                // 初始化Firebase
+                firebaseApp = firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                
+                showNotification('Firebase连接成功！');
+                loadClipboardItems();
+                
+                // 监听实时更新
+                setupRealtimeListener();
+                
+            } catch (error) {
+                console.error('初始化Firebase失败:', error);
+                showNotification('Firebase连接失败，请检查配置', true);
+            }
+        }
+        
+        // 设置实时监听
+        function setupRealtimeListener() {
+            if (!db) return;
+            
+            db.collection('clipboard_items')
+                .orderBy('createdAt', 'desc')
+                .limit(20)
+                .onSnapshot((snapshot) => {
+                    // 当数据变化时自动更新UI
+                    loadClipboardItems();
+                }, (error) => {
+                    console.error('实时监听失败:', error);
+                });
+        }
+        
+        // 保存配置
+        function saveConfig() {
+            const apiKey = apiKeyInput.value.trim();
+            const projectId = projectIdInput.value.trim();
+            
+            if (!apiKey || !projectId) {
+                showNotification('请填写完整的Firebase配置', true);
+                return;
+            }
+            
+            try {
+                const config = {
+                    apiKey: apiKey,
+                    projectId: projectId,
+                    configuredAt: new Date().toISOString()
+                };
+                
+                localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(config));
+                initializeFirebase(config);
+                
+            } catch (error) {
+                console.error('保存配置失败:', error);
+                showNotification('保存配置失败', true);
+            }
+        }
+        
+        // 重置配置
+        function resetConfig() {
+            if (confirm('确定要重置Firebase配置吗？')) {
+                localStorage.removeItem(FIREBASE_CONFIG_KEY);
+                apiKeyInput.value = '';
+                projectIdInput.value = '';
+                
+                if (firebaseApp) {
+                    firebaseApp.delete();
+                    firebaseApp = null;
+                    db = null;
+                }
+                
+                showNotification('配置已重置');
+                clipboardList.innerHTML = `
+                    <div class="empty-state">
+                        <p>暂无保存的内容</p>
+                        <p>请先完成Firebase配置</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // 从云端加载内容
+        async function loadClipboardItems() {
+            if (!db) {
+                return;
+            }
+            
+            try {
+                const snapshot = await db.collection('clipboard_items')
+                    .orderBy('createdAt', 'desc')
+                    .limit(20)
+                    .get();
+                
+                clipboardList.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    clipboardList.innerHTML = `
+                        <div class="empty-state">
+                            <p>暂无保存的内容</p>
+                            <p>在上方输入内容并保存，即可在这里查看</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                snapshot.forEach(doc => {
+                    const item = doc.data();
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'clipboard-item';
+                    itemElement.innerHTML = `
+                        <div class="clipboard-content">${escapeHtml(item.content)}</div>
+                        <div class="clipboard-meta">
+                            <span>${formatDate(new Date(item.createdAt))}</span>
+                            <div class="clipboard-actions">
+                                <button class="action-btn copy-btn" data-content="${escapeHtml(item.content)}">
+                                    📋 复制
+                                </button>
+                                <button class="action-btn delete-btn" data-id="${doc.id}">
+                                    🗑️ 删除
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    clipboardList.appendChild(itemElement);
+                });
+                
+                // 添加复制按钮事件
+                document.querySelectorAll('.copy-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const content = btn.getAttribute('data-content');
+                        copyToClipboard(content);
+                        showNotification('内容已复制到剪贴板！');
+                    });
+                });
+                
+                // 添加删除按钮事件
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        if (confirm('确定要删除这条内容吗？')) {
+                            await deleteItem(id);
+                        }
+                    });
+                });
+                
+            } catch (error) {
+                console.error('加载内容失败:', error);
+                if (error.code === 'failed-precondition') {
+                    showNotification('请先在Firebase中创建Firestore数据库', true);
+                } else {
+                    showNotification('加载内容失败，请检查配置', true);
+                }
+            }
+        }
+        
+        // 保存内容到云端
+        async function saveToCloud() {
+            if (!db) {
+                showNotification('请先完成Firebase配置', true);
+                return;
+            }
+            
+            const content = clipboardInput.value.trim();
+            
+            if (!content) {
+                showNotification('请输入要保存的内容', true);
+                return;
+            }
+            
+            try {
+                await db.collection('clipboard_items').add({
+                    content: content,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                clipboardInput.value = '';
+                showNotification('内容已保存到云端！');
+                
+            } catch (error) {
+                console.error('保存失败:', error);
+                if (error.code === 'failed-precondition') {
+                    showNotification('请先在Firebase中创建Firestore数据库', true);
+                showFirestoreSetupInstructions();
+                } else {
+                    showNotification('保存失败，请重试', true);
+                }
+            }
+        }
+        
+        // 删除内容
+        async function deleteItem(id) {
+            if (!db) return;
+            
+            try {
+                await db.collection('clipboard_items').doc(id).delete();
+                showNotification('内容已删除');
+            } catch (error) {
+                console.error('删除失败:', error);
+                showNotification('删除失败', true);
+            }
+        }
+        
+        // 显示Firestore设置说明
+        function showFirestoreSetupInstructions() {
+            const instructions = `
+                <div class="info-box">
+                    <h4>Firestore设置步骤：</h4>
+                    <p>1. 访问 <a href="https://console.firebase.google.com" style="color: white; text-decoration: underline;" target="_blank">Firebase控制台</a></p>
+                    <p>2. 选择您的项目</p>
+                    <p>3. 点击左侧菜单中的"Firestore Database"</p>
+                    <p>4. 点击"创建数据库"</p>
+                    <p>5. 选择"以测试模式启动"</p>
+                    <p>6. 选择您的位置，然后点击"完成"</p>
+                </div>
+            `;
+            
+            // 在通知区域显示说明
+            notification.innerHTML = instructions;
+            notification.style.background = 'rgba(255, 255, 255, 0.95)';
+            notification.style.color = '#333';
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                notification.innerHTML = '内容已保存！';
+                notification.style.background = 'white';
+                notification.style.color = '#2575fc';
+            }, 10000);
+        }
+        
+        // 辅助函数
+        function formatDate(date) {
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function copyToClipboard(text) {
+            // 使用现代剪贴板API
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    // 成功
+                }).catch(err => {
+                    // 如果现代API失败，回退到传统方法
+                    fallbackCopyToClipboard(text);
+                });
+            } else {
+                // 使用传统方法
+                fallbackCopyToClipboard(text);
+            }
+        }
+        
+        function fallbackCopyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+        }
+        
+        function showNotification(message, isError = false) {
+            notification.textContent = message;
+            notification.style.background = isError ? '#ff6b6b' : 'white';
+            notification.style.color = isError ? 'white' : '#2575fc';
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 事件监听
+        saveConfigBtn.addEventListener('click', saveConfig);
+        resetConfigBtn.addEventListener('click', resetConfig);
+        saveBtn.addEventListener('click', saveToCloud);
+        clearBtn.addEventListener('click', () => {
+            clipboardInput.value = '';
+        });
+        refreshBtn.addEventListener('click', loadClipboardItems);
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', loadConfig);
+        
+        // 添加触摸设备优化
+        document.addEventListener('touchstart', function() {}, {passive: true});
+    </script>
+</body>
+</html>
